@@ -3,10 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { Menu, X, BarChart3, Package, FileText } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Menu, X, BarChart3, Package, FileText, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { authClient } from "@/lib/auth/auth-client";
 
 const navItems = [
   { label: "Generate Pitch", path: "/", icon: FileText },
@@ -16,12 +17,22 @@ const navItems = [
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    await authClient.signOut();
+    router.push("/login");
+    router.refresh();
+    setIsSigningOut(false);
+  };
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 bg-sidebar text-sidebar-foreground p-6 gap-8 min-h-screen">
+      <aside className="hidden lg:flex flex-col w-64 shrink-0 h-screen sticky top-0 overflow-y-auto bg-sidebar text-sidebar-foreground p-6 gap-8">
         <Link href="/" className="flex flex-col gap-1.5 items-start">
           <Image
             src="/logo.svg"
@@ -54,15 +65,27 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className="mt-auto card-light !bg-sidebar-accent !text-sidebar-foreground !border-sidebar-border">
-          <p className="text-xs opacity-70 mb-1">Pitches generated</p>
-          <p className="font-display text-2xl font-bold">147</p>
-          <p className="text-xs text-secondary mt-1">↑ 12% this week</p>
+        <div className="mt-auto flex flex-col gap-3">
+          <div className="card-light bg-sidebar-accent text-sidebar-foreground border-sidebar-border">
+            <p className="text-xs opacity-70 mb-1">Pitches generated</p>
+            <p className="font-display text-2xl font-bold">147</p>
+            <p className="text-xs text-secondary mt-1">↑ 12% this week</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+            className="w-full justify-start gap-3 text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+          >
+            <LogOut className="w-4 h-4" />
+            {isSigningOut ? "Signing out…" : "Sign out"}
+          </Button>
         </div>
       </aside>
 
       {/* Mobile Top Bar */}
-      <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-sidebar text-sidebar-foreground">
+      <header className="lg:hidden h-14 shrink-0 flex items-center justify-between px-4 py-3 bg-sidebar text-sidebar-foreground">
         <Link href="/" className="flex items-center">
           <Image
             src="/logo.svg"
@@ -79,7 +102,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           onClick={() => setMobileOpen(!mobileOpen)}
           className="text-sidebar-foreground hover:bg-sidebar-accent"
         >
-          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          {mobileOpen ? (
+            <X className="w-5 h-5" />
+          ) : (
+            <Menu className="w-5 h-5" />
+          )}
         </Button>
       </header>
 
@@ -111,15 +138,26 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   </Link>
                 );
               })}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setMobileOpen(false);
+                  handleSignOut();
+                }}
+                disabled={isSigningOut}
+                className="justify-start gap-3 text-sidebar-foreground/80 hover:bg-sidebar-accent/50 mt-2"
+              >
+                <LogOut className="w-4 h-4" />
+                {isSigningOut ? "Signing out…" : "Sign out"}
+              </Button>
             </nav>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 lg:p-8 overflow-auto">
-        {children}
-      </main>
+      <main className="flex-1 p-4 lg:p-8 overflow-auto">{children}</main>
     </div>
   );
 }
