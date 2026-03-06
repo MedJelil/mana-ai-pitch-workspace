@@ -9,3 +9,8 @@ export const getSession = async () => {
 
   return session;
 };
+
+/** Use in API Route Handlers: pass request.headers to get the current session */
+export async function getSessionFromHeaders(requestHeaders: Headers) {
+  return auth.api.getSession({ headers: requestHeaders });
+}
