@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import {
   Calendar,
   TrendingUp,
@@ -102,7 +103,7 @@ export default function PitchHistory() {
                 className="w-full flex flex-col sm:flex-row sm:items-center gap-4 hover:bg-muted/30 transition-colors text-left p-4 sm:p-0 sm:px-6 sm:py-4"
               >
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground">
+                  <h3 className="font-semibold text-foreground hover:underline">
                     {pitch.productName}
                   </h3>
                   <div className="flex flex-wrap items-center gap-2 mt-2">
@@ -136,6 +137,12 @@ export default function PitchHistory() {
                     className="border-t border-border"
                   >
                     <div className="p-4 sm:px-6 sm:pb-6 space-y-4 text-sm">
+                      <Link
+                        href={`/pitch/${pitch.id}`}
+                        className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                      >
+                        View full pitch
+                      </Link>
                       {pitch.positioning && (
                         <div>
                           <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-1">

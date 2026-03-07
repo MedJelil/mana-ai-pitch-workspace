@@ -151,4 +151,20 @@
   .badge-retailer {
     @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-muted text-muted-foreground;
   }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--muted) 0%,
+      var(--border) 25%,
+      var(--muted) 50%,
+      var(--border) 75%,
+      var(--muted) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s ease-in-out infinite;
+  }
 }

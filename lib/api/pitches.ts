@@ -21,6 +21,12 @@ export async function fetchPitches(): Promise<PitchRecord[]> {
   return res.json();
 }
 
+export async function fetchPitch(id: string): Promise<PitchRecord> {
+  const res = await fetch(`/api/pitches/${id}`);
+  if (!res.ok) throw new Error("Failed to load pitch");
+  return res.json();
+}
+
 export type CreatePitchInput = {
   productId: string;
   retailer: string;
