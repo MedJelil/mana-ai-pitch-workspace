@@ -1,30 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar,
   TrendingUp,
   ChevronDown,
   ChevronUp,
-  Loader2,
   FileText,
 } from "lucide-react";
-
-type PitchRecord = {
-  id: string;
-  productId: string;
-  productName: string;
-  retailer: string;
-  focus: string;
-  fitScore: number;
-  createdAt: string;
-  positioning?: string;
-  talkingPoints?: string[];
-  suggestedPitch?: string;
-  issues?: string[];
-  suggestions?: string[];
-};
+import { fetchPitches, pitchesQueryKey } from "@/lib/api/pitches";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function scoreClass(score: number) {
   if (score >= 80) return "badge-score-high";
@@ -45,48 +32,12 @@ function formatDate(iso: string) {
 }
 
 export default function PitchHistory() {
-  const [pitches, setPitches] = useState<PitchRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: pitches = [], isLoading, error } = useQuery({
+    queryKey: pitchesQueryKey,
+    queryFn: fetchPitches,
+  });
+
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/pitches");
-        if (!res.ok) throw new Error("Failed to load pitches");
-        const data = await res.json();
-        if (!cancelled) setPitches(data);
-      } catch (e) {
-        if (!cancelled)
-          setError(e instanceof Error ? e.message : "Failed to load");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="max-w-6xl mx-auto space-y-8">
-        <div>
-          <h1 className="font-display text-3xl lg:text-4xl font-bold tracking-tight">
-            Pitch History
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Review past pitches and scores
-          </p>
-        </div>
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -101,11 +52,31 @@ export default function PitchHistory() {
 
       {error && (
         <div className="rounded-xl bg-destructive/10 text-destructive px-4 py-3 text-sm">
-          {error}
+          {error instanceof Error ? error.message : "Failed to load"}
         </div>
       )}
 
-      {pitches.length === 0 ? (
+      {isLoading ? (
+        <div className="space-y-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="card-light overflow-hidden p-4 sm:px-6 sm:py-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex-1 min-w-0 space-y-2">
+                  <Skeleton className="h-5 w-48" />
+                  <div className="flex flex-wrap gap-2">
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                </div>
+                <div className="flex items-center sm:flex-col sm:items-end">
+                  <Skeleton className="h-8 w-14 rounded-full" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : pitches.length === 0 ? (
         <div className="card-light flex flex-col items-center justify-center py-16 text-center">
           <FileText className="w-12 h-12 text-muted-foreground mb-4 opacity-50" />
           <p className="text-muted-foreground mb-2">No pitches yet</p>

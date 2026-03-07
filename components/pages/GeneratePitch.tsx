@@ -1,75 +1,51 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Sparkles, ChevronDown, CheckCircle2, AlertCircle, Lightbulb, TrendingUp, Loader2 } from "lucide-react";
+import { Sparkles, CheckCircle2, AlertCircle, Lightbulb, TrendingUp, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { Product } from "./Products";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { productsQueryKey, fetchProducts } from "@/lib/api/products";
+import { createPitch, pitchesQueryKey, type PitchResult } from "@/lib/api/pitches";
 
 const RETAILERS = ["Whole Foods", "Walmart", "HEB", "Sam's Club"];
 const FOCUSES = ["Organic", "Premium", "Value"];
 
-export type PitchResult = {
-  id: string;
-  productId: string;
-  productName: string;
-  retailer: string;
-  focus: string;
-  positioning: string;
-  talkingPoints: string[];
-  suggestedPitch: string;
-  fitScore: number;
-  issues: string[];
-  suggestions: string[];
-  createdAt: string;
-};
+export type { PitchResult };
 
 export default function GeneratePitch() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const queryClient = useQueryClient();
+  const { data: products = [], isLoading: loadingProducts, error: productsError } = useQuery({
+    queryKey: productsQueryKey,
+    queryFn: fetchProducts,
+  });
+
+  const generateMutation = useMutation({
+    mutationFn: createPitch,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: pitchesQueryKey });
+    },
+  });
+
   const [productId, setProductId] = useState("");
   const [retailer, setRetailer] = useState("");
   const [focus, setFocus] = useState("");
-  const [result, setResult] = useState<PitchResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [loadingProducts, setLoadingProducts] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/products");
-        if (!res.ok) throw new Error("Failed to load products");
-        const data = await res.json();
-        if (!cancelled) setProducts(data);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load products");
-      } finally {
-        if (!cancelled) setLoadingProducts(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  const result = generateMutation.data ?? null;
+  const error = productsError?.message ?? generateMutation.error?.message ?? null;
+  const loading = generateMutation.isPending;
 
-  const handleGenerate = async () => {
+  const handleGenerate = () => {
     if (!productId || !retailer || !focus) return;
-    setLoading(true);
-    setError(null);
-    setResult(null);
-    try {
-      const res = await fetch("/api/pitches", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, retailer, focus }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to generate pitch");
-      setResult(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
+    generateMutation.mutate({ productId, retailer, focus });
   };
 
   const scoreColor =
@@ -97,8 +73,20 @@ export default function GeneratePitch() {
           <h2 className="font-display text-xl font-semibold text-foreground">Product Selection</h2>
 
           {loadingProducts ? (
-            <div className="flex items-center gap-2 text-muted-foreground py-4">
-              <Loader2 className="w-4 h-4 animate-spin" /> Loading products…
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-10 w-full rounded-xl" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-10 w-full rounded-xl" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-10 w-full rounded-xl" />
+              </div>
+              <Skeleton className="h-12 w-full rounded-xl" />
             </div>
           ) : products.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">
@@ -106,27 +94,51 @@ export default function GeneratePitch() {
             </p>
           ) : (
             <>
-              <SelectField
-                label="Product"
-                value={productId}
-                onChange={setProductId}
-                options={products.map((p) => ({ value: p.id, label: p.name }))}
-                placeholder="Select a product"
-              />
-              <SelectField
-                label="Target Retailer"
-                value={retailer}
-                onChange={setRetailer}
-                options={RETAILERS.map((r) => ({ value: r, label: r }))}
-                placeholder="Select retailer"
-              />
-              <SelectField
-                label="Retailer Focus"
-                value={focus}
-                onChange={setFocus}
-                options={FOCUSES.map((f) => ({ value: f, label: f }))}
-                placeholder="Select focus area"
-              />
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Product</label>
+                <Select value={productId || undefined} onValueChange={(v) => setProductId(v ?? "")}>
+                  <SelectTrigger className="w-full rounded-xl h-11">
+                    <SelectValue placeholder="Select a product" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Target Retailer</label>
+                <Select value={retailer || undefined} onValueChange={(v) => setRetailer(v ?? "")}>
+                  <SelectTrigger className="w-full rounded-xl h-11">
+                    <SelectValue placeholder="Select retailer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RETAILERS.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Retailer Focus</label>
+                <Select value={focus || undefined} onValueChange={(v) => setFocus(v ?? "")}>
+                  <SelectTrigger className="w-full rounded-xl h-11">
+                    <SelectValue placeholder="Select focus area" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FOCUSES.map((f) => (
+                      <SelectItem key={f} value={f}>
+                        {f}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <Button
                 onClick={handleGenerate}
@@ -170,7 +182,7 @@ export default function GeneratePitch() {
             <div>
               <h3 className="text-xs uppercase tracking-wider opacity-60 mb-2">Talking Points</h3>
               <ul className="space-y-2">
-                {result.talkingPoints.map((point, i) => (
+                {result.talkingPoints?.map((point, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm opacity-90">
                     <CheckCircle2 className="w-4 h-4 text-secondary mt-0.5 shrink-0" />
                     {point}
@@ -217,7 +229,7 @@ export default function GeneratePitch() {
               <AlertCircle className="w-4 h-4 text-primary" /> Issues
             </h3>
             <ul className="space-y-2">
-              {result.issues.map((issue, i) => (
+              {result.issues?.map((issue, i) => (
                 <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
                   {issue}
@@ -231,7 +243,7 @@ export default function GeneratePitch() {
               <Lightbulb className="w-4 h-4 text-secondary" /> Suggestions
             </h3>
             <ul className="space-y-2">
-              {result.suggestions.map((s, i) => (
+              {result.suggestions?.map((s, i) => (
                 <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-secondary mt-1.5 shrink-0" />
                   {s}
@@ -241,41 +253,6 @@ export default function GeneratePitch() {
           </div>
         </motion.div>
       )}
-    </div>
-  );
-}
-
-function SelectField({
-  label,
-  value,
-  onChange,
-  options,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-  placeholder: string;
-}) {
-  return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-foreground">{label}</label>
-      <div className="relative">
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full appearance-none bg-background border border-input rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-        >
-          <option value="">{placeholder}</option>
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-      </div>
     </div>
   );
 }

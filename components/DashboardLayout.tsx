@@ -4,10 +4,26 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { Menu, X, BarChart3, Package, FileText, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { authClient } from "@/lib/auth/auth-client";
+import { fetchPitches, pitchesQueryKey } from "@/lib/api/pitches";
+
+function usePitchStats() {
+  const { data: pitches = [], isLoading } = useQuery({
+    queryKey: pitchesQueryKey,
+    queryFn: fetchPitches,
+  });
+  const total = pitches.length;
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+  const thisWeek = pitches.filter((p) => new Date(p.createdAt) >= startOfWeek).length;
+  return { total, thisWeek, isLoading };
+}
 
 const navItems = [
   { label: "Generate Pitch", path: "/", icon: FileText },
@@ -20,6 +36,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const { total: pitchCount, thisWeek: pitchCountThisWeek, isLoading: pitchesLoading } = usePitchStats();
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -68,8 +85,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <div className="mt-auto flex flex-col gap-3">
           <div className="card-light bg-sidebar-accent text-sidebar-foreground border-sidebar-border">
             <p className="text-xs opacity-70 mb-1">Pitches generated</p>
-            <p className="font-display text-2xl font-bold">147</p>
-            <p className="text-xs text-secondary mt-1">↑ 12% this week</p>
+            <p className="font-display text-2xl font-bold">
+              {pitchesLoading ? "—" : pitchCount}
+            </p>
+            <p className="text-xs text-secondary mt-1">
+              {pitchesLoading ? "—" : `${pitchCountThisWeek} this week`}
+            </p>
           </div>
           <Button
             variant="ghost"
@@ -138,6 +159,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   </Link>
                 );
               })}
+              <div className="card-light bg-sidebar-accent text-sidebar-foreground border-sidebar-border px-4 py-3 my-2">
+                <p className="text-xs opacity-70 mb-1">Pitches generated</p>
+                <p className="font-display text-2xl font-bold">
+                  {pitchesLoading ? "—" : pitchCount}
+                </p>
+                <p className="text-xs text-secondary mt-1">
+                  {pitchesLoading ? "—" : `${pitchCountThisWeek} this week`}
+                </p>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
