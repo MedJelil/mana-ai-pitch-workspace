@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, PackagePlus, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -94,14 +94,16 @@ export default function GeneratePitch() {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="grid lg:grid-cols-2 gap-8"
+        className={`grid gap-8 ${products.length > 0 || loading ? "lg:grid-cols-2" : ""}`}
       >
         <motion.div
           className={`card-light space-y-5 transition-opacity ${loading ? "opacity-60 pointer-events-none" : ""}`}
         >
-          <h2 className="font-display text-xl font-semibold text-foreground">
-            Product & Store Selection
-          </h2>
+          {products.length > 0 && (
+            <h2 className="font-display text-xl font-semibold text-foreground">
+              Product & Store Selection
+            </h2>
+          )}
 
           {loadingProducts ? (
             <div className="space-y-5">
@@ -120,10 +122,29 @@ export default function GeneratePitch() {
               <Skeleton className="h-12 w-full rounded-xl" />
             </div>
           ) : products.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">
-              Add products in the <strong>Products</strong> page first, then come
-              back to generate pitches.
-            </p>
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center justify-center gap-5 py-10 text-center"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
+                <PackagePlus className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <p className="font-semibold text-foreground">No products yet</p>
+                <p className="text-sm text-muted-foreground max-w-[240px]">
+                  Add at least one product before generating a pitch.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="rounded-xl gap-2"
+                onClick={() => router.push("/products")}
+              >
+                Go to Products
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </motion.div>
           ) : (
             <>
               <div className="space-y-2">
@@ -215,7 +236,7 @@ export default function GeneratePitch() {
               </div>
             </div>
           </motion.div>
-        ) : (
+        ) : products.length > 0 ? (
           <motion.div
             key="placeholder"
             initial={{ opacity: 0 }}
@@ -224,10 +245,10 @@ export default function GeneratePitch() {
           >
             <div className="text-center text-muted-foreground">
               <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">Select options and generate a pitch</p>
+              <p className="text-sm">A live preview will show here while generating</p>
             </div>
           </motion.div>
-        )}
+        ) : null}
       </motion.div>
     </div>
   );
