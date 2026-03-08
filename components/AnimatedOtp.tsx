@@ -40,7 +40,7 @@ const AnimatedOTPInput = ({
   const [values, setValues] = useState<string[]>(Array(length).fill(""));
   const [activeIndex, setActiveIndex] = useState(0);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(
-    autoFocus ? 0 : null
+    autoFocus ? 0 : null,
   );
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const hiddenInputRef = useRef<HTMLInputElement | null>(null);
@@ -110,7 +110,7 @@ const AnimatedOTPInput = ({
 
       return combinedValue;
     },
-    [onChange, register]
+    [onChange, register],
   );
 
   const syncFromString = useCallback(
@@ -134,7 +134,7 @@ const AnimatedOTPInput = ({
         onComplete(combinedValue);
       }
     },
-    [applyValues, length, onComplete]
+    [applyValues, length, onComplete],
   );
 
   const updateValue = useCallback(
@@ -155,12 +155,12 @@ const AnimatedOTPInput = ({
         }
       }
     },
-    [values, length, applyValues, onComplete]
+    [values, length, applyValues, onComplete],
   );
 
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
-    index: number
+    index: number,
   ) => {
     if (e.key === "Backspace") {
       if (values[index]) {
@@ -206,7 +206,7 @@ const AnimatedOTPInput = ({
 
   const handleInput = (
     e: React.ChangeEvent<HTMLInputElement>,
-    index: number
+    index: number,
   ) => {
     const inputValue = e.target.value;
     if (/^\d*$/.test(inputValue)) {
@@ -233,7 +233,7 @@ const AnimatedOTPInput = ({
           "relative",
           "flex items-center justify-center",
           "min-h-40 w-full max-w-[450px] mx-auto",
-          "rounded-md bg-card"
+          "rounded-md",
         )}
       >
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full px-4">
@@ -255,7 +255,7 @@ const AnimatedOTPInput = ({
                       ? "border-primary/50"
                       : error
                         ? "border-destructive"
-                        : "hover:border-primary/50"
+                        : "hover:border-primary/50",
                   )}
                 >
                   {/* Glow animation on active/focused input */}
@@ -323,7 +323,7 @@ const AnimatedOTPInput = ({
                       "text-center text-lg sm:text-xl font-semibold",
                       "bg-transparent border-0 outline-none",
                       "text-foreground",
-                      "caret-primary/50"
+                      "caret-primary/50",
                     )}
                     autoComplete={idx === 0 ? "one-time-code" : "off"}
                     aria-label={`Digit ${idx + 1} of ${length}`}
@@ -346,7 +346,7 @@ const AnimatedOTPInput = ({
                           "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
                           "pointer-events-none",
                           "text-lg sm:text-xl font-semibold text-foreground",
-                          isFocused && "text-primary/50"
+                          isFocused && "text-primary/50",
                         )}
                       >
                         {inputValue}

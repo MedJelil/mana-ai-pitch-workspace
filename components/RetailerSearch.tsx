@@ -49,8 +49,9 @@ export default function RetailerSearch({ value, onChange, disabled }: Props) {
 
   // Compute suggestions synchronously from local dataset
   const suggestions: USCity[] = useMemo(
-    () => (locationInput.trim().length >= 1 ? searchUSCities(locationInput, 6) : []),
-    [locationInput]
+    () =>
+      locationInput.trim().length >= 1 ? searchUSCities(locationInput, 6) : [],
+    [locationInput],
   );
 
   // Derived: only show the dropdown when there are results and the field is focused
@@ -79,10 +80,9 @@ export default function RetailerSearch({ value, onChange, disabled }: Props) {
   } = useQuery({
     queryKey: retailerSearchQueryKey(
       searchState?.brand ?? "",
-      searchState?.near ?? ""
+      searchState?.near ?? "",
     ),
-    queryFn: () =>
-      searchRetailerStores(searchState!.brand, searchState!.near),
+    queryFn: () => searchRetailerStores(searchState!.brand, searchState!.near),
     enabled: !!searchState,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -263,7 +263,7 @@ export default function RetailerSearch({ value, onChange, disabled }: Props) {
           <Button
             type="button"
             variant="outline"
-            className="rounded-xl h-11 px-4 shrink-0"
+            className="rounded-xl h-11 px-4 shrink-0 flex items-center gap-1"
             onClick={() => triggerSearch()}
             disabled={disabled || !brand || !locationInput.trim() || fetching}
           >
@@ -272,7 +272,7 @@ export default function RetailerSearch({ value, onChange, disabled }: Props) {
             ) : (
               <Search className="w-4 h-4" />
             )}
-            <span className="ml-2 hidden sm:inline">Search</span>
+            <span className="hidden sm:inline">Search</span>
           </Button>
         </div>
         {!brand.trim() && (
