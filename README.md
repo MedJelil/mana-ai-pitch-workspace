@@ -4,18 +4,93 @@ An AI-powered SaaS tool for CPG (consumer packaged goods) brands to generate hig
 
 ---
 
-## What it does
+## What I Built
 
-Given a product, a specific retail store location, and pitch focus areas, Mana AI calls a large language model and produces:
+Mana AI solves a real problem for emerging food and beverage brands: walking into a buyer meeting at Whole Foods or Walmart without a prepared, retailer-specific pitch is a near-guaranteed miss. Most brands pitch the same way to every retailer.
+
+The app lets a brand enter their product details once, pick a specific store location, choose their pitch angle (Organic, Sustainable, Value, etc.), and get a complete pitch package in seconds — tailored to that exact retailer's priorities, margin expectations, and known buyer objections.
+
+**What the app produces in a single AI call:**
 
 - **Positioning narrative** — 2–4 sentences tailored to the retailer's priorities
 - **Talking points** — bullet-ready for the buyer meeting
-- **Suggested pitch** — a ready-to-send paragraph
+- **Suggested pitch** — a ready-to-send opening paragraph
 - **Readiness checklist** — 6 dimensions evaluated per retailer (certifications, price alignment, category fit, velocity proof, margin viability, packaging/format)
-- **Issues & suggestions** — objections to anticipate and actionable improvements
-- **Buyer simulation** — how a real buyer at that chain would react: their questions, internal red flags, and what would get a yes
+- **Issues & suggestions** — objections to anticipate and what to fix before the meeting
+- **Buyer simulation** — questions, internal red flags, and what would tip a buyer toward yes
 
-All output is saved to the database and pitches can be regenerated at any time.
+All output is saved to the database. Pitches can be regenerated at any time (e.g. after updating product details), and the full pitch history is browsable.
+
+---
+
+## Key Decisions
+
+### Single AI call for everything
+The first version made two separate API calls: one to generate the pitch, then a second to simulate the buyer after the pitch page loaded. This meant a second loading state on a page where the user was already waiting.
+
+The better approach was to extend the JSON schema and instruct the model to generate both the pitch and the buyer simulation in a single response. The model already has all the context it needs (product, retailer DNA, pitch content) in the same context window, so the buyer simulation is more coherent — it directly reacts to the pitch it just wrote rather than simulating generically.
+
+### Readiness checklist instead of a fit score
+An early version showed a single 1–100 fit score. The problem: it was just a number the AI made up with no consistent rubric, so scores across different pitches weren't comparable and gave no actionable signal.
+
+Replacing it with a structured checklist of 6 specific dimensions (certifications, price alignment, category fit, velocity proof, margin viability, packaging format) — each with a status and a one-sentence note — gives the brand something they can actually act on before the meeting.
+
+### Retailer DNA in the prompt
+Generic LLM prompts produce generic pitches. The `buildRetailerDNA()` function in `lib/pitch/generate.ts` injects structured strategic context per retailer: their typical margin requirements, what they value in a pitch, their known buyer objections, deal-breakers, and what makes a pitch stand out. This makes the AI output meaningfully different for a Whole Foods pitch vs a Costco pitch vs an HEB pitch, even for the same product.
+
+### Local city autocomplete instead of an external API
+Location autocomplete was initially wired to Foursquare's autocomplete endpoint. This introduced a second external dependency, an extra API key scope, and a loading state for a feature that doesn't need real-time data. Replacing it with a local static dataset of ~150+ US cities gives instant suggestions with zero network cost.
+
+### In-place pitch regeneration
+When adding regeneration, the choice was between creating a new pitch record each time vs overwriting the existing one. Creating a new record would flood the history with near-identical entries and break the concept of "this is the pitch for Product X at Store Y." Overwriting in-place keeps one clean record per pitch session and always reflects the most recent AI run against the latest product data.
+
+### Product completeness indicator
+The pitch quality is directly limited by how much product data is provided. Rather than letting users generate weak pitches and wonder why they're generic, each product card shows a segmented bar across the 5 AI-important optional fields. Missing fields are listed by name so the user knows exactly what to add before generating.
+
+---
+
+## How I Used AI
+
+AI is central to the product, not just the tooling:
+
+**Pitch generation (`lib/pitch/generate.ts`)**
+The generation prompt combines three layers of context:
+1. **Product context** — all structured product fields formatted into a briefing
+2. **Retailer DNA** — per-chain strategic context built by `buildRetailerDNA()`, covering margin expectations, category priorities, known objections, and deal-breakers for 11+ retail chains
+3. **Pitch focus** — the user-selected angles (Organic, Sustainable, Premium, etc.) as the directive
+
+The response schema enforces a strict JSON structure covering all output fields including the 6-dimension readiness checklist and the buyer simulation object — all returned in one call. Both Gemini (default, using `responseMimeType: "application/json"` and `responseSchema` for structured output enforcement) and Claude (using prompt-based schema description) are supported and switchable via `PITCH_PROVIDER`.
+
+**Buyer simulation**
+The simulation is generated in the same call as the pitch. The prompt instructs the model to context-switch: after generating the pitch as a sales strategist, it evaluates the same pitch from the buyer's perspective — what questions it raises, what internal red flags it triggers, and what would make them more likely to say yes. Having both in the same call means the buyer reactions are specific to the generated pitch rather than a generic simulation.
+
+**Prompt robustness**
+JSON truncation was an early failure mode — Gemini's `maxOutputTokens` was too low and responses were cut mid-object, causing parse failures. This was fixed by increasing the token limit and adding explicit truncation detection in the error handling (checking for the absence of a closing `}` to surface a clear error rather than a cryptic JSON parse failure).
+
+---
+
+## What I'd Improve With More Time
+
+**Pitch version history**
+Currently regenerating overwrites the existing pitch. Storing each generated version (linked to the same pitch session) would let users compare runs, roll back to a previous version, and see how the pitch improved as they filled in more product data.
+
+**Streaming generation**
+The generate button currently blocks until the entire AI response is ready (~8–15s). Streaming the response and progressively revealing sections (positioning first, then talking points, then readiness checklist) would make the wait feel much shorter and give immediate value.
+
+**Richer retailer database**
+`buildRetailerDNA()` currently covers ~11 chains with hand-written profiles. This should be a database table, editable by admins, with a UI to add new retailers and keep profiles current as buyer priorities shift. Profiles could also be enriched with real data from public trade publications.
+
+**Pitch export**
+Users need to actually use these pitches. A one-click export to PDF or a formatted email draft (pre-addressed to the buyer, formatted as a proper sell sheet intro) would close the loop between generation and delivery.
+
+**Team / brand accounts**
+The current data model is strictly per-user. A multi-user brand account with role-based access (brand manager, sales rep, admin) would make this usable for companies with a team — shared product catalog, shared pitch history, per-rep activity.
+
+**Feedback loop**
+Adding a simple outcome field on pitches ("Meeting booked", "Sample requested", "No response", "Rejected") would create a training signal. Over time this data could be used to tune the readiness scoring — the checklist dimensions could be weighted based on which factors actually correlate with positive outcomes at each retailer.
+
+**Foursquare search quality**
+The current search sometimes returns semantically related but wrong results — a search for "HEB" in a city with no HEB stores returns whatever Foursquare decides is nearby. Adding a stricter "no results in this area" state and improving the brand name matching would prevent users from accidentally generating a pitch for the wrong store.
 
 ---
 
@@ -105,6 +180,7 @@ DATABASE_URL=
 # App URL
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
 BETTER_AUTH_URL=http://localhost:3000
+BETTER_AUTH_SECRET=                # Generate with: openssl rand -base64 32
 
 # Email (Resend)
 RESEND_API_KEY=
@@ -175,60 +251,6 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## Key Features
-
-### Product Catalog
-Products are the source of truth for all pitches. Each product has:
-- Name, category, description
-- Key selling points
-- Certifications (USDA Organic, Non-GMO, etc.)
-- Velocity / sales data
-- Packaging / sustainability notes
-- Price positioning
-
-A **completeness indicator** on each product card shows which of the 5 AI-important fields are filled, so you know how well a pitch will perform before generating it.
-
-### Retailer Search
-Uses the **Foursquare Places API** to find specific store locations in the US. Type a brand name (e.g. "Whole Foods") and a city/state, and select the exact store you're pitching. Location autocomplete uses a local city dataset — no extra API calls.
-
-### Pitch Generation
-Each pitch is generated by a single AI call that returns the full output: positioning, talking points, suggested pitch, readiness checklist, issues, suggestions, and buyer simulation — all in one round-trip, stored in the database on creation.
-
-**Retailer DNA:** The `buildRetailerDNA()` function in `lib/pitch/generate.ts` provides structured strategic context for 11+ retail chains (Whole Foods, Walmart, HEB, Costco, Target, etc.), including their margin expectations, category priorities, typical buyer objections, and deal-breakers. This significantly improves pitch quality.
-
-**Provider switching:** Set `PITCH_PROVIDER=claude` to use Claude instead of Gemini.
-
-### Pitch Regeneration
-Any existing pitch can be regenerated — the AI re-runs with the latest product data (in case you've updated the product since the original pitch) and overwrites the record in place. The `retailerBrand` and `storeContext` are stored with each pitch so full context is preserved for regeneration.
-
-### Readiness Checklist
-Replaces a simple "fit score" number with 6 actionable dimensions evaluated per retailer:
-
-| Dimension | What it checks |
-|---|---|
-| Certifications | Does the product hold certs this retailer values? |
-| Price alignment | Does the MSRP fit this retailer's typical shelf tier? |
-| Category fit | Is this category growing or established here? |
-| Velocity / proof | Does the brand have data to back claims? |
-| Margin viability | Can the product support this retailer's margin requirements? |
-| Packaging / format | Is unit size and case pack right for the channel? |
-
-### Buyer Simulation
-Generated alongside the pitch, the buyer simulation shows how a real buyer at that specific chain would react:
-- **Questions** they'd ask in the meeting
-- **Concerns** they'd flag internally
-- **Suggestions** that would increase the chance of a yes
-
----
-
-## Authentication
-
-Mana uses **better-auth** with email OTP (one-time passcode). No passwords. Users enter their email, receive a 6-digit code (or see it in terminal during development), and are authenticated.
-
-The `AnimatedOtp.tsx` component handles the OTP input with animated digit boxes and auto-submit on completion.
-
----
-
 ## API Reference
 
 All endpoints require authentication (session cookie).
@@ -271,3 +293,4 @@ Set all environment variables listed above in your deployment platform's dashboa
 - Set `NEXT_PUBLIC_BASE_URL` and `BETTER_AUTH_URL` to your production domain
 - Ensure `NODE_ENV=production` (platforms set this automatically)
 - Run `pnpm db:migrate` on first deploy (or use `pnpm db:push` for a fresh database)
+
