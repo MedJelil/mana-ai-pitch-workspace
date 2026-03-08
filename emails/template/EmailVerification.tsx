@@ -46,7 +46,7 @@ export const OtpVerification = ({ otp = "{{otp}}" }: OtpVerificationProps) => {
           <Container className="mx-auto max-w-[600px] p-0">
             <Section className="px-6 py-4 flex flex-col items-center justify-center text-center">
               <Img
-                src={`${baseUrl}/logo.svg`}
+                src={`${baseUrl}/logo.png`}
                 alt="Mana AI"
                 className="mx-auto max-w-[350px]"
               />
