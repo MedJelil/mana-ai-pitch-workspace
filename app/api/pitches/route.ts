@@ -97,6 +97,8 @@ export async function POST(req: NextRequest) {
       userId: session.user.id,
       productId: productRow.id,
       retailer,
+      retailerBrand: storeInfo.retailerBrand,
+      storeContext,
       focus,
       positioning: generated.positioning,
       talkingPoints: generated.talkingPoints,

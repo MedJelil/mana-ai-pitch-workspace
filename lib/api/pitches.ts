@@ -19,6 +19,8 @@ export type PitchRecord = {
   productId: string;
   productName: string;
   retailer: string;
+  retailerBrand?: string | null;
+  storeContext?: string | null;
   focus: string;
   readiness?: ReadinessItem[] | null;
   createdAt: string;
@@ -68,6 +70,13 @@ export async function createPitch(input: CreatePitchInput): Promise<PitchResult>
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "Failed to generate pitch");
+  return data;
+}
+
+export async function regeneratePitch(id: string): Promise<PitchResult> {
+  const res = await fetch(`/api/pitches/${id}/regenerate`, { method: "POST" });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to regenerate pitch");
   return data;
 }
 

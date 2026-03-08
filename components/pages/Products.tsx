@@ -3,23 +3,51 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, X, Package, Loader2 } from "lucide-react";
+import {
+  Plus,
+  X,
+  Package,
+  Loader2,
+  Pencil,
+  Trash2,
+  AlertTriangle,
+  CheckCircle2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   fetchProducts,
   createProduct,
+  updateProduct,
+  deleteProduct,
   productsQueryKey,
   type Product,
   type CreateProductInput,
+  type UpdateProductInput,
 } from "@/lib/api/products";
+
+// The 5 optional fields the AI uses to improve pitches
+const COMPLETENESS_FIELDS: { key: keyof Product; label: string }[] = [
+  { key: "keySellingPoints", label: "Key selling points" },
+  { key: "certifications", label: "Certifications" },
+  { key: "velocityData", label: "Velocity data" },
+  { key: "packagingSustainability", label: "Packaging / sustainability" },
+  { key: "pricePositioning", label: "Price positioning" },
+];
+
+function completenessCount(p: Product): number {
+  return COMPLETENESS_FIELDS.filter(({ key }) => {
+    const v = p[key];
+    return Array.isArray(v) ? v.length > 0 : !!v;
+  }).length;
+}
 
 const defaultForm = {
   name: "",
   category: "",
-  description: "" as string,
-  keySellingPoints: "" as string,
-  certifications: "" as string,
+  description: "",
+  keySellingPoints: "",
+  certifications: "",
   velocityData: "",
   packagingSustainability: "",
   pricePositioning: "",
@@ -30,6 +58,19 @@ function parseList(value: string): string[] {
     .split(/[\n,]/)
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+function productToForm(p: Product) {
+  return {
+    name: p.name,
+    category: p.category,
+    description: p.description,
+    keySellingPoints: p.keySellingPoints.join(", "),
+    certifications: p.certifications.join(", "),
+    velocityData: p.velocityData ?? "",
+    packagingSustainability: p.packagingSustainability ?? "",
+    pricePositioning: p.pricePositioning ?? "",
+  };
 }
 
 export type { Product };
@@ -49,36 +90,86 @@ export default function Products() {
     mutationFn: (input: CreateProductInput) => createProduct(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: productsQueryKey });
+      setForm(defaultForm);
+      setModalOpen(false);
+    },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateProductInput }) =>
+      updateProduct(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: productsQueryKey });
+      setForm(defaultForm);
+      setEditingProduct(null);
+      setModalOpen(false);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteProduct(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: productsQueryKey });
+      setConfirmDeleteId(null);
     },
   });
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [form, setForm] = useState(defaultForm);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  const handleAdd = () => {
-    if (!form.name?.trim() || !form.category?.trim()) return;
-    addMutation.mutate(
-      {
-        name: form.name.trim(),
-        category: form.category.trim(),
-        description: form.description.trim() || "",
-        keySellingPoints: parseList(form.keySellingPoints),
-        certifications: parseList(form.certifications),
-        velocityData: form.velocityData.trim() || null,
-        packagingSustainability: form.packagingSustainability.trim() || null,
-        pricePositioning: form.pricePositioning.trim() || null,
-      },
-      {
-        onSuccess: () => {
-          setForm(defaultForm);
-          setModalOpen(false);
-        },
-      },
-    );
+  const isEditing = !!editingProduct;
+  const submitting = addMutation.isPending || editMutation.isPending;
+
+  const openAdd = () => {
+    setEditingProduct(null);
+    setForm(defaultForm);
+    setModalOpen(true);
   };
 
-  const errorMessage = error?.message ?? addMutation.error?.message ?? null;
-  const submitting = addMutation.isPending;
+  const openEdit = (p: Product) => {
+    setEditingProduct(p);
+    setForm(productToForm(p));
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    if (submitting) return;
+    setModalOpen(false);
+    setEditingProduct(null);
+    setForm(defaultForm);
+  };
+
+  const handleSubmit = () => {
+    if (!form.name.trim() || !form.category.trim()) return;
+    const payload = {
+      name: form.name.trim(),
+      category: form.category.trim(),
+      description: form.description.trim(),
+      keySellingPoints: parseList(form.keySellingPoints),
+      certifications: parseList(form.certifications),
+      velocityData: form.velocityData.trim() || null,
+      packagingSustainability: form.packagingSustainability.trim() || null,
+      pricePositioning: form.pricePositioning.trim() || null,
+    };
+    if (isEditing && editingProduct) {
+      editMutation.mutate({ id: editingProduct.id, input: payload });
+    } else {
+      addMutation.mutate(payload);
+    }
+  };
+
+  const errorMessage =
+    error?.message ??
+    addMutation.error?.message ??
+    editMutation.error?.message ??
+    deleteMutation.error?.message ??
+    null;
+
+  const productToDelete = confirmDeleteId
+    ? products.find((p) => p.id === confirmDeleteId)
+    : null;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -92,7 +183,7 @@ export default function Products() {
           </p>
         </div>
         <Button
-          onClick={() => setModalOpen(true)}
+          onClick={openAdd}
           className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl"
         >
           <Plus className="w-4 h-4 mr-2" /> Add Product
@@ -115,7 +206,6 @@ export default function Products() {
                   <Skeleton className="h-4 w-3/4" />
                   <Skeleton className="h-5 w-16 rounded-full" />
                   <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-3 w-full" />
                   <Skeleton className="h-3 w-1/2" />
                 </div>
               </div>
@@ -131,7 +221,7 @@ export default function Products() {
             AI can generate stronger pitches.
           </p>
           <Button
-            onClick={() => setModalOpen(true)}
+            onClick={openAdd}
             className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl"
           >
             <Plus className="w-4 h-4 mr-2" /> Add your first product
@@ -139,39 +229,121 @@ export default function Products() {
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {products.map((p, i) => (
-            <motion.div
-              key={p.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="card-light hover:shadow-md transition-shadow group"
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center shrink-0">
-                  <Package className="w-5 h-5 text-secondary" />
+          {products.map((p, i) => {
+            const filled = completenessCount(p);
+            const total = COMPLETENESS_FIELDS.length;
+            const isComplete = filled === total;
+            return (
+              <motion.div
+                key={p.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="card-light hover:shadow-md transition-shadow group flex flex-col gap-3"
+              >
+                {/* Header */}
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center shrink-0">
+                    <Package className="w-5 h-5 text-secondary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-foreground truncate">
+                      {p.name}
+                    </h3>
+                    <span className="badge-retailer mt-1">{p.category}</span>
+                    <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                      {p.description || (
+                        <span className="italic opacity-60">
+                          No description
+                        </span>
+                      )}
+                    </p>
+                    {p.certifications?.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {p.certifications.slice(0, 2).join(", ")}
+                        {p.certifications.length > 2 ? "…" : ""}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <h3 className="font-semibold text-foreground truncate">
-                    {p.name}
-                  </h3>
-                  <span className="badge-retailer mt-1">{p.category}</span>
-                  <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                    {p.description}
-                  </p>
-                  {p.certifications?.length > 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {p.certifications.slice(0, 2).join(", ")}
-                      {p.certifications.length > 2 ? "…" : ""}
+
+                {/* Completeness bar */}
+                <div className="border-t border-border pt-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      AI data completeness
+                    </span>
+                    <span
+                      className={`text-xs font-medium flex items-center gap-1 ${
+                        isComplete
+                          ? "text-green-600"
+                          : filled >= 3
+                            ? "text-yellow-600"
+                            : "text-destructive"
+                      }`}
+                    >
+                      {isComplete ? (
+                        <CheckCircle2 className="w-3 h-3" />
+                      ) : (
+                        <AlertTriangle className="w-3 h-3" />
+                      )}
+                      {filled}/{total}
+                    </span>
+                  </div>
+                  <div className="flex gap-1">
+                    {COMPLETENESS_FIELDS.map(({ key, label }) => {
+                      const v = p[key];
+                      const isFilled = Array.isArray(v) ? v.length > 0 : !!v;
+                      return (
+                        <div
+                          key={key}
+                          title={`${label}: ${isFilled ? "✓" : "missing"}`}
+                          className={`h-1.5 flex-1 rounded-full transition-colors ${
+                            isFilled ? "bg-green-500" : "bg-muted"
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+                  {filled < total && (
+                    <p className="text-xs text-muted-foreground">
+                      Missing:{" "}
+                      {COMPLETENESS_FIELDS.filter(({ key }) => {
+                        const v = p[key];
+                        return Array.isArray(v) ? v.length === 0 : !v;
+                      })
+                        .map(({ label }) => label)
+                        .join(", ")}
                     </p>
                   )}
                 </div>
-              </div>
-            </motion.div>
-          ))}
+
+                {/* Actions */}
+                <div className="flex flex-1 items-end">
+                  <div className="flex w-full items-center gap-2 pt-1 border-t border-border">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(p)}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Pencil className="w-3.5 h-3.5" /> Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(p.id)}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors ml-auto"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       )}
 
+      {/* Add / Edit modal */}
       <AnimatePresence>
         {modalOpen && (
           <motion.div
@@ -179,7 +351,7 @@ export default function Products() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-foreground/40 z-50 flex items-center justify-center p-4 overflow-y-auto"
-            onClick={() => !submitting && setModalOpen(false)}
+            onClick={closeModal}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -190,11 +362,11 @@ export default function Products() {
             >
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-xl font-semibold">
-                  Add Product
+                  {isEditing ? "Edit Product" : "Add Product"}
                 </h2>
                 <button
                   type="button"
-                  onClick={() => !submitting && setModalOpen(false)}
+                  onClick={closeModal}
                   className="text-muted-foreground hover:text-foreground"
                 >
                   <X className="w-5 h-5" />
@@ -314,21 +486,89 @@ export default function Products() {
                 </div>
               </div>
 
+              {(addMutation.error || editMutation.error) && (
+                <p className="text-sm text-destructive">
+                  {addMutation.error?.message ?? editMutation.error?.message}
+                </p>
+              )}
+
               <Button
-                onClick={handleAdd}
+                onClick={handleSubmit}
                 disabled={
-                  !form.name?.trim() || !form.category?.trim() || submitting
+                  !form.name.trim() || !form.category.trim() || submitting
                 }
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl py-5"
               >
                 {submitting ? (
                   <span className="flex items-center justify-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Adding…
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {isEditing ? "Saving…" : "Adding…"}
                   </span>
+                ) : isEditing ? (
+                  "Save Changes"
                 ) : (
                   "Add Product"
                 )}
               </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete confirmation modal */}
+      <AnimatePresence>
+        {confirmDeleteId && productToDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-foreground/40 z-50 flex items-center justify-center p-4"
+            onClick={() =>
+              !deleteMutation.isPending && setConfirmDeleteId(null)
+            }
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-popover rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5 text-destructive" />
+                </div>
+                <div>
+                  <h2 className="font-display text-lg font-semibold">
+                    Delete product?
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    <strong>{productToDelete.name}</strong> and all its pitches
+                    will be permanently deleted.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1 rounded-xl"
+                  onClick={() => setConfirmDeleteId(null)}
+                  disabled={deleteMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                  onClick={() => deleteMutation.mutate(confirmDeleteId)}
+                  disabled={deleteMutation.isPending}
+                >
+                  {deleteMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Delete"
+                  )}
+                </Button>
+              </div>
             </motion.div>
           </motion.div>
         )}

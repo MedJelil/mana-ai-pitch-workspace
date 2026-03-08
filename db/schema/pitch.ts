@@ -26,6 +26,10 @@ export const pitch = pgTable("pitch", {
     .notNull()
     .references(() => product.id, { onDelete: "cascade" }),
   retailer: text().notNull(),
+  /** Brand name used for retailer DNA lookup (e.g. "Whole Foods") — needed for regeneration */
+  retailerBrand: text("retailer_brand"),
+  /** Store + location context passed to AI (e.g. "Whole Foods Market in Austin, TX") */
+  storeContext: text("store_context"),
   focus: text().notNull(),
   positioning: text().notNull(),
   talkingPoints: jsonb("talking_points").$type<string[]>().notNull(),

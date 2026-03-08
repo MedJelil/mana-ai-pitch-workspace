@@ -21,6 +21,8 @@ export async function GET(
       productId: pitch.productId,
       productName: product.name,
       retailer: pitch.retailer,
+      retailerBrand: pitch.retailerBrand,
+      storeContext: pitch.storeContext,
       focus: pitch.focus,
       readiness: pitch.readiness,
       createdAt: pitch.createdAt,

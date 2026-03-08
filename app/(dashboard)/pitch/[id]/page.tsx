@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -13,14 +13,17 @@ import {
   ShieldAlert,
   ChevronLeft,
   CheckCheck,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { fetchPitch, pitchesQueryKey } from "@/lib/api/pitches";
+import { fetchPitch, regeneratePitch, pitchesQueryKey } from "@/lib/api/pitches";
 
 export default function PitchResultPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
+  const queryClient = useQueryClient();
 
   const { data: pitch, isLoading, error } = useQuery({
     queryKey: [...pitchesQueryKey, id],
@@ -28,19 +31,120 @@ export default function PitchResultPage() {
     enabled: !!id,
   });
 
+  const regenerateMutation = useMutation({
+    mutationFn: () => regeneratePitch(id!),
+    onSuccess: (updated) => {
+      queryClient.setQueryData([...pitchesQueryKey, id], updated);
+    },
+  });
+
+  const isRegenerating = regenerateMutation.isPending;
+
   if (!id) {
     return null;
   }
 
   if (isLoading) {
     return (
-      <div className="max-w-6xl mx-auto space-y-8">
-        <Skeleton className="h-10 w-48" />
-        <div className="card-light space-y-4 p-6">
-          <Skeleton className="h-6 w-32" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
+      <div className="max-w-6xl mx-auto space-y-8 animate-pulse">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-44" />
+            <Skeleton className="h-5 w-64" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-32 rounded-xl" />
+            <Skeleton className="h-10 w-44 rounded-xl" />
+          </div>
+        </div>
+
+        {/* Pitch content card (card-navy) */}
+        <div className="bg-card rounded-2xl p-6 shadow-lg space-y-6">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-6 w-28 bg-card-foreground/10" />
+            <Skeleton className="h-6 w-40 rounded-full bg-card-foreground/10" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-20 bg-card-foreground/10" />
+            <Skeleton className="h-4 w-full bg-card-foreground/10" />
+            <Skeleton className="h-4 w-full bg-card-foreground/10" />
+            <Skeleton className="h-4 w-3/4 bg-card-foreground/10" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-24 bg-card-foreground/10" />
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Skeleton className="w-4 h-4 rounded-full shrink-0 bg-card-foreground/10" />
+                <Skeleton className={`h-4 bg-card-foreground/10 ${i % 2 === 0 ? "w-full" : "w-5/6"}`} />
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-28 bg-card-foreground/10" />
+            <Skeleton className="h-4 w-full bg-card-foreground/10" />
+            <Skeleton className="h-4 w-4/5 bg-card-foreground/10" />
+          </div>
+        </div>
+
+        {/* Readiness checklist */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Skeleton className="w-5 h-5 rounded" />
+            <Skeleton className="h-6 w-44" />
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="card-light border-l-4 border-l-muted p-4 flex items-start gap-3">
+                <Skeleton className="w-4 h-4 rounded-full shrink-0 mt-0.5" />
+                <div className="space-y-1.5 flex-1 min-w-0">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Issues + Suggestions */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {["Issues", "Suggestions"].map((label) => (
+            <div key={label} className="card-light space-y-3">
+              <div className="flex items-center gap-2">
+                <Skeleton className="w-4 h-4 rounded" />
+                <Skeleton className="h-5 w-20" />
+              </div>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <Skeleton className="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5" />
+                  <Skeleton className={`h-4 ${i === 3 ? "w-3/4" : "w-full"}`} />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Buyer Simulator */}
+        <div className="space-y-4">
+          <Skeleton className="h-7 w-52" />
+          <Skeleton className="h-4 w-72" />
+          <div className="grid md:grid-cols-3 gap-6">
+            {["Buyer Questions", "Potential Concerns", "Suggestions"].map((label) => (
+              <div key={label} className="card-light space-y-3">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="w-4 h-4 rounded" />
+                  <Skeleton className="h-5 w-28" />
+                </div>
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <Skeleton className="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5" />
+                    <Skeleton className={`h-4 ${i === 3 ? "w-4/5" : "w-full"}`} />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -75,13 +179,57 @@ export default function PitchResultPage() {
             {pitch.productName} → {pitch.retailer}
           </p>
         </div>
-        <Button variant="outline" asChild className="rounded-xl gap-2">
-          <Link href="/">
-            <ChevronLeft className="w-4 h-4" />
-            Generate another pitch
-          </Link>
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => regenerateMutation.mutate()}
+            disabled={isRegenerating}
+            variant="outline"
+            className="rounded-xl gap-2"
+          >
+            {isRegenerating ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
+            {isRegenerating ? "Regenerating…" : "Regenerate"}
+          </Button>
+          <Button variant="outline" asChild className="rounded-xl gap-2">
+            <Link href="/">
+              <ChevronLeft className="w-4 h-4" />
+              Generate another pitch
+            </Link>
+          </Button>
+        </div>
       </div>
+
+      {regenerateMutation.isError && (
+        <div className="rounded-xl bg-destructive/10 text-destructive px-4 py-3 text-sm">
+          {regenerateMutation.error instanceof Error
+            ? regenerateMutation.error.message
+            : "Regeneration failed"}
+        </div>
+      )}
+
+      {isRegenerating && (
+        <div className="rounded-2xl border border-primary/30 bg-primary/5 px-5 py-4 flex items-center gap-4">
+          <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+            <Loader2 className="w-5 h-5 text-primary animate-spin" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Regenerating pitch…</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              AI is crafting a new version with the latest product data
+            </p>
+          </div>
+          <div className="ml-auto flex gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+            <span className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+            <span className="w-2 h-2 rounded-full bg-primary animate-bounce" />
+          </div>
+        </div>
+      )}
+
+      <div className={`space-y-8 transition-opacity duration-500 ${isRegenerating ? "opacity-30 pointer-events-none" : ""}`}>
 
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -276,6 +424,7 @@ export default function PitchResultPage() {
           </div>
         ) : null}
       </motion.div>
+      </div>
     </div>
   );
 }

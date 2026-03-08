@@ -41,3 +41,24 @@ export async function createProduct(input: CreateProductInput): Promise<Product>
   if (!res.ok) throw new Error(data.error ?? "Failed to add product");
   return data;
 }
+
+export type UpdateProductInput = Partial<CreateProductInput>;
+
+export async function updateProduct(id: string, input: UpdateProductInput): Promise<Product> {
+  const res = await fetch(`/api/products/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to update product");
+  return data;
+}
+
+export async function deleteProduct(id: string): Promise<void> {
+  const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "Failed to delete product");
+  }
+}
