@@ -18,11 +18,19 @@ export type BuyerSimulation = {
   suggestions: string[];
 };
 
+export type ReadinessStatus = "ok" | "warning" | "missing";
+
+export type ReadinessItem = {
+  label: string;
+  status: ReadinessStatus;
+  note: string;
+};
+
 export type GeneratedPitch = {
   positioning: string;
   talkingPoints: string[];
   suggestedPitch: string;
-  fitScore: number;
+  readiness: ReadinessItem[];
   issues: string[];
   suggestions: string[];
   buyerSimulation: BuyerSimulation;
@@ -32,7 +40,14 @@ const PITCH_JSON_SCHEMA = `{
   "positioning": "string: 2-4 sentences on how the product fits this retailer",
   "talkingPoints": ["string: bullet points for the meeting"],
   "suggestedPitch": "string: short ready-to-send pitch paragraph",
-  "fitScore": number 1-100,
+  "readiness": [
+    { "label": "Certifications", "status": "ok|warning|missing", "note": "string: one sentence" },
+    { "label": "Price alignment", "status": "ok|warning|missing", "note": "string: one sentence" },
+    { "label": "Category fit", "status": "ok|warning|missing", "note": "string: one sentence" },
+    { "label": "Velocity / proof", "status": "ok|warning|missing", "note": "string: one sentence" },
+    { "label": "Margin viability", "status": "ok|warning|missing", "note": "string: one sentence" },
+    { "label": "Packaging / format", "status": "ok|warning|missing", "note": "string: one sentence" }
+  ],
   "issues": ["string: potential objections or gaps"],
   "suggestions": ["string: actionable recommendations"],
   "buyerSimulation": {
@@ -52,7 +67,19 @@ const PITCH_RESPONSE_SCHEMA = {
       description: "Bullet points for the meeting",
     },
     suggestedPitch: { type: "string", description: "Short ready-to-send pitch paragraph" },
-    fitScore: { type: "number", description: "Fit score 1-100" },
+    readiness: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          label: { type: "string" },
+          status: { type: "string", enum: ["ok", "warning", "missing"] },
+          note: { type: "string" },
+        },
+        required: ["label", "status", "note"],
+      },
+      description: "6 readiness dimensions evaluated against this specific retailer",
+    },
     issues: {
       type: "array",
       items: { type: "string" },
@@ -85,7 +112,7 @@ const PITCH_RESPONSE_SCHEMA = {
       required: ["questions", "concerns", "suggestions"],
     },
   },
-  required: ["positioning", "talkingPoints", "suggestedPitch", "fitScore", "issues", "suggestions", "buyerSimulation"],
+  required: ["positioning", "talkingPoints", "suggestedPitch", "readiness", "issues", "suggestions", "buyerSimulation"],
 };
 
 export async function generatePitchWithClaude(
@@ -110,7 +137,16 @@ ${PITCH_JSON_SCHEMA}
 
 Pitch fields:
 - Be specific to the product AND the retailer chain. Use the product's certifications, velocity data, price positioning, and sustainability info when relevant.
-- fitScore should reflect real fit (80+ strong, 50-79 moderate, below 50 challenges). Issues and suggestions must be actionable and retailer-specific.
+- Issues and suggestions must be actionable and retailer-specific.
+
+readiness — evaluate exactly these 6 dimensions in order, using the product data and retailer context:
+1. Certifications: does the product hold the certifications this retailer values most (organic, non-GMO, etc.)?
+2. Price alignment: does the MSRP fit this retailer's typical shelf price tier for this category?
+3. Category fit: is this category growing or well-established at this retailer?
+4. Velocity / proof: does the brand have scan data, velocity numbers, or social proof to support claims?
+5. Margin viability: can the product support this retailer's expected margin requirements?
+6. Packaging / format: is the unit size and case pack appropriate for this retail channel?
+Use "ok" when strong, "warning" when there's a potential concern, "missing" when it's a likely blocker.
 
 buyerSimulation fields — think from the buyer's perspective, not the brand's:
 - questions: 3 questions a real buyer at this retailer would ask in the meeting
@@ -145,7 +181,7 @@ Return only the JSON object, no other text.`;
     typeof parsed.positioning !== "string" ||
     !Array.isArray(parsed.talkingPoints) ||
     typeof parsed.suggestedPitch !== "string" ||
-    typeof parsed.fitScore !== "number" ||
+    !Array.isArray(parsed.readiness) ||
     !Array.isArray(parsed.issues) ||
     !Array.isArray(parsed.suggestions) ||
     !parsed.buyerSimulation ||
@@ -160,7 +196,7 @@ Return only the JSON object, no other text.`;
     positioning: parsed.positioning,
     talkingPoints: parsed.talkingPoints,
     suggestedPitch: parsed.suggestedPitch,
-    fitScore: Math.min(100, Math.max(0, Math.round(parsed.fitScore))),
+    readiness: parsed.readiness,
     issues: parsed.issues,
     suggestions: parsed.suggestions,
     buyerSimulation: parsed.buyerSimulation,
@@ -741,7 +777,16 @@ ${PITCH_JSON_SCHEMA}
 
 Pitch fields:
 - Be specific to the product AND the retailer chain. Use the product's certifications, velocity data, price positioning, and sustainability info when relevant.
-- fitScore should reflect real fit (80+ strong, 50-79 moderate, below 50 challenges). Issues and suggestions must be actionable and retailer-specific.
+- Issues and suggestions must be actionable and retailer-specific.
+
+readiness — evaluate exactly these 6 dimensions in order, using the product data and retailer context:
+1. Certifications: does the product hold the certifications this retailer values most (organic, non-GMO, etc.)?
+2. Price alignment: does the MSRP fit this retailer's typical shelf price tier for this category?
+3. Category fit: is this category growing or well-established at this retailer?
+4. Velocity / proof: does the brand have scan data, velocity numbers, or social proof to support claims?
+5. Margin viability: can the product support this retailer's expected margin requirements?
+6. Packaging / format: is the unit size and case pack appropriate for this retail channel?
+Use "ok" when strong, "warning" when there's a potential concern, "missing" when it's a likely blocker.
 
 buyerSimulation fields — think from the buyer's perspective, not the brand's:
 - questions: 3 questions a real buyer at this retailer would ask in the meeting
@@ -795,7 +840,7 @@ Return only the JSON object, no other text.`;
     typeof parsed.positioning !== "string" ||
     !Array.isArray(parsed.talkingPoints) ||
     typeof parsed.suggestedPitch !== "string" ||
-    typeof parsed.fitScore !== "number" ||
+    !Array.isArray(parsed.readiness) ||
     !Array.isArray(parsed.issues) ||
     !Array.isArray(parsed.suggestions) ||
     !parsed.buyerSimulation ||
@@ -810,7 +855,7 @@ Return only the JSON object, no other text.`;
     positioning: parsed.positioning,
     talkingPoints: parsed.talkingPoints,
     suggestedPitch: parsed.suggestedPitch,
-    fitScore: Math.min(100, Math.max(0, Math.round(parsed.fitScore))),
+    readiness: parsed.readiness,
     issues: parsed.issues,
     suggestions: parsed.suggestions,
     buyerSimulation: parsed.buyerSimulation,

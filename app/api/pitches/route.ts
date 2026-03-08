@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
       productName: product.name,
       retailer: pitch.retailer,
       focus: pitch.focus,
-      fitScore: pitch.fitScore,
+      readiness: pitch.readiness,
       createdAt: pitch.createdAt,
       positioning: pitch.positioning,
       talkingPoints: pitch.talkingPoints,
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     pricePositioning: productRow.pricePositioning,
   };
 
-  // Single AI call — returns pitch + buyer simulation together
+  // Single AI call — returns pitch + readiness checklist + buyer simulation
   const generated = await generatePitch(
     productData,
     storeInfo.retailerBrand,
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
       positioning: generated.positioning,
       talkingPoints: generated.talkingPoints,
       suggestedPitch: generated.suggestedPitch,
-      fitScore: generated.fitScore,
+      readiness: generated.readiness,
       issues: generated.issues,
       suggestions: generated.suggestions,
       buyerSimulation: generated.buyerSimulation,

@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { user } from "./user";
 import { product } from "./product";
 
@@ -7,6 +7,14 @@ export type BuyerSimulation = {
   questions: string[];
   concerns: string[];
   suggestions: string[];
+};
+
+export type ReadinessStatus = "ok" | "warning" | "missing";
+
+export type ReadinessItem = {
+  label: string;
+  status: ReadinessStatus;
+  note: string;
 };
 
 export const pitch = pgTable("pitch", {
@@ -22,10 +30,9 @@ export const pitch = pgTable("pitch", {
   positioning: text().notNull(),
   talkingPoints: jsonb("talking_points").$type<string[]>().notNull(),
   suggestedPitch: text("suggested_pitch").notNull(),
-  fitScore: integer("fit_score").notNull(),
+  readiness: jsonb("readiness").$type<ReadinessItem[]>(),
   issues: jsonb("issues").$type<string[]>().notNull(),
   suggestions: jsonb("suggestions").$type<string[]>().notNull(),
-  /** Cached buyer simulation — null until the simulation is first run. */
   buyerSimulation: jsonb("buyer_simulation").$type<BuyerSimulation>(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
     .defaultNow()

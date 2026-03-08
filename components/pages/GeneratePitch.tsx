@@ -14,12 +14,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { productsQueryKey, fetchProducts } from "@/lib/api/products";
+import { MultiSelect } from "@/components/MultiSelect";import { productsQueryKey, fetchProducts } from "@/lib/api/products";
 import { createPitch, pitchesQueryKey, type PitchResult } from "@/lib/api/pitches";
 import RetailerSearch from "@/components/RetailerSearch";
 import { type SelectedStore } from "@/lib/api/retailer-search";
 
-const FOCUSES = ["Organic", "Premium", "Value"];
+const FOCUS_OPTIONS = [
+  { value: "Organic", label: "Organic" },
+  { value: "Clean Label", label: "Clean Label" },
+  { value: "Plant-Based", label: "Plant-Based" },
+  { value: "Health & Wellness", label: "Health & Wellness" },
+  { value: "Premium", label: "Premium" },
+  { value: "Sustainable", label: "Sustainable" },
+  { value: "Trending Category", label: "Trending Category" },
+  { value: "Value / Price Competitive", label: "Value / Price Competitive" },
+  { value: "Convenience", label: "Convenience" },
+  { value: "Family Friendly", label: "Family Friendly" },
+];
 
 export type { PitchResult };
 
@@ -41,12 +52,14 @@ export default function GeneratePitch() {
 
   const [productId, setProductId] = useState("");
   const [selectedStore, setSelectedStore] = useState<SelectedStore | null>(null);
-  const [focus, setFocus] = useState("");
+  const [focuses, setFocuses] = useState<string[]>([]);
+
+  const focus = focuses.join(", ");
 
   const error = productsError?.message ?? generateMutation.error?.message ?? null;
   const loading = generateMutation.isPending;
 
-  const canGenerate = !!productId && !!selectedStore && !!focus && !loading;
+  const canGenerate = !!productId && !!selectedStore && focuses.length > 0 && !loading;
 
   const handleGenerate = () => {
     if (!canGenerate) return;
@@ -144,21 +157,13 @@ export default function GeneratePitch() {
                 <label className="text-sm font-medium text-foreground">
                   Retailer Focus
                 </label>
-                <Select
-                  value={focus || undefined}
-                  onValueChange={(v) => setFocus(v ?? "")}
-                >
-                  <SelectTrigger className="w-full rounded-xl h-11">
-                    <SelectValue placeholder="Select focus area" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FOCUSES.map((f) => (
-                      <SelectItem key={f} value={f}>
-                        {f}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MultiSelect
+                  options={FOCUS_OPTIONS}
+                  defaultValue={focuses}
+                  onValueChange={setFocuses}
+                  placeholder="Select one or more focus areas"
+                  className="rounded-xl"
+                />
               </div>
 
               <Button

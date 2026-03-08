@@ -6,13 +6,21 @@ export type BuyerSimulation = {
   suggestions: string[];
 };
 
+export type ReadinessStatus = "ok" | "warning" | "missing";
+
+export type ReadinessItem = {
+  label: string;
+  status: ReadinessStatus;
+  note: string;
+};
+
 export type PitchRecord = {
   id: string;
   productId: string;
   productName: string;
   retailer: string;
   focus: string;
-  fitScore: number;
+  readiness?: ReadinessItem[] | null;
   createdAt: string;
   positioning?: string;
   talkingPoints?: string[];

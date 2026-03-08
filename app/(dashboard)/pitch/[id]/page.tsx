@@ -8,10 +8,11 @@ import {
   CheckCircle2,
   AlertCircle,
   Lightbulb,
-  TrendingUp,
+  CircleAlert,
   HelpCircle,
   ShieldAlert,
   ChevronLeft,
+  CheckCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -60,13 +61,6 @@ export default function PitchResultPage() {
       </div>
     );
   }
-
-  const scoreColor =
-    pitch.fitScore >= 80
-      ? "badge-score-high"
-      : pitch.fitScore >= 50
-        ? "badge-score-mid"
-        : "badge-score-low";
 
   const simulationData = pitch.buyerSimulation ?? null;
 
@@ -131,26 +125,57 @@ export default function PitchResultPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="grid md:grid-cols-3 gap-6"
+        className="space-y-4"
       >
-        <div className="card-light flex flex-col items-center justify-center py-8">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
-            Fit Score
-          </p>
-          <div
-            className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-display font-bold ${scoreColor}`}
-          >
-            {pitch.fitScore}
+        <h2 className="font-display text-xl font-bold tracking-tight flex items-center gap-2">
+          <CheckCheck className="w-5 h-5 text-primary" /> Readiness Checklist
+        </h2>
+        {pitch.readiness && pitch.readiness.length > 0 ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {pitch.readiness.map((item, i) => {
+              const isOk = item.status === "ok";
+              const isWarning = item.status === "warning";
+              return (
+                <div
+                  key={i}
+                  className={`card-light flex items-start gap-3 p-4 border-l-4 ${
+                    isOk
+                      ? "border-l-green-500"
+                      : isWarning
+                        ? "border-l-yellow-500"
+                        : "border-l-destructive"
+                  }`}
+                >
+                  <span className="mt-0.5 shrink-0">
+                    {isOk ? (
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                    ) : isWarning ? (
+                      <CircleAlert className="w-4 h-4 text-yellow-500" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-destructive" />
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground leading-tight">
+                      {item.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      {item.note}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" />{" "}
-            {pitch.fitScore >= 80
-              ? "Strong fit"
-              : pitch.fitScore >= 50
-                ? "Moderate fit"
-                : "Challenges"}
-          </p>
-        </div>
+        ) : null}
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="grid md:grid-cols-2 gap-6"
+      >
         <div className="card-light space-y-3">
           <h3 className="font-display text-lg font-semibold flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-primary" /> Issues

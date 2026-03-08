@@ -22,7 +22,7 @@ export async function GET(
       productName: product.name,
       retailer: pitch.retailer,
       focus: pitch.focus,
-      fitScore: pitch.fitScore,
+      readiness: pitch.readiness,
       createdAt: pitch.createdAt,
       positioning: pitch.positioning,
       talkingPoints: pitch.talkingPoints,

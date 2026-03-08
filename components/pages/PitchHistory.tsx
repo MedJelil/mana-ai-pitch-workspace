@@ -6,18 +6,40 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import {
   Calendar,
-  TrendingUp,
   ChevronDown,
   ChevronUp,
   FileText,
 } from "lucide-react";
-import { fetchPitches, pitchesQueryKey } from "@/lib/api/pitches";
+import { fetchPitches, pitchesQueryKey, type ReadinessItem } from "@/lib/api/pitches";
 import { Skeleton } from "@/components/ui/skeleton";
 
-function scoreClass(score: number) {
-  if (score >= 80) return "badge-score-high";
-  if (score >= 50) return "badge-score-mid";
-  return "badge-score-low";
+function ReadinessSummary({ readiness }: { readiness?: ReadinessItem[] | null }) {
+  if (!readiness || readiness.length === 0) return null;
+  const ok = readiness.filter((r) => r.status === "ok").length;
+  const warning = readiness.filter((r) => r.status === "warning").length;
+  const missing = readiness.filter((r) => r.status === "missing").length;
+  return (
+    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      {ok > 0 && (
+        <span className="flex items-center gap-0.5 text-green-600 font-medium">
+          <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+          {ok}
+        </span>
+      )}
+      {warning > 0 && (
+        <span className="flex items-center gap-0.5 text-yellow-600 font-medium">
+          <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 inline-block" />
+          {warning}
+        </span>
+      )}
+      {missing > 0 && (
+        <span className="flex items-center gap-0.5 text-destructive font-medium">
+          <span className="w-1.5 h-1.5 rounded-full bg-destructive inline-block" />
+          {missing}
+        </span>
+      )}
+    </span>
+  );
 }
 
 function formatDate(iso: string) {
@@ -47,7 +69,7 @@ export default function PitchHistory() {
           Pitch History
         </h1>
         <p className="text-muted-foreground mt-2">
-          Review past pitches and scores
+          Review past pitches and readiness
         </p>
       </div>
 
@@ -116,9 +138,7 @@ export default function PitchHistory() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3 sm:flex-col sm:items-end">
-                  <span className={scoreClass(pitch.fitScore)}>
-                    <TrendingUp className="w-3 h-3 mr-1" /> {pitch.fitScore}
-                  </span>
+                  <ReadinessSummary readiness={pitch.readiness} />
                   {expandedId === pitch.id ? (
                     <ChevronUp className="w-4 h-4 text-muted-foreground" />
                   ) : (
