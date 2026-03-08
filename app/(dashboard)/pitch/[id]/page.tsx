@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -17,7 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchPitch, pitchesQueryKey } from "@/lib/api/pitches";
-import { simulateBuyer } from "@/lib/api/simulate-buyer";
 
 export default function PitchResultPage() {
   const params = useParams<{ id: string }>();
@@ -28,28 +26,6 @@ export default function PitchResultPage() {
     queryFn: () => fetchPitch(id!),
     enabled: !!id,
   });
-
-  const simulateMutation = useMutation({ mutationFn: simulateBuyer });
-
-  useEffect(() => {
-    if (
-      !pitch?.productId ||
-      !pitch?.retailer ||
-      !pitch?.positioning ||
-      !pitch?.suggestedPitch
-    )
-      return;
-    simulateMutation.reset();
-    simulateMutation.mutate({
-      productId: pitch.productId,
-      retailer: pitch.retailer,
-      pitch: {
-        positioning: pitch.positioning,
-        talkingPoints: pitch.talkingPoints ?? [],
-        suggestedPitch: pitch.suggestedPitch,
-      },
-    });
-  }, [pitch?.id]);
 
   if (!id) {
     return null;
@@ -91,6 +67,8 @@ export default function PitchResultPage() {
       : pitch.fitScore >= 50
         ? "badge-score-mid"
         : "badge-score-low";
+
+  const simulationData = pitch.buyerSimulation ?? null;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -220,31 +198,14 @@ export default function PitchResultPage() {
           How a {pitch.retailer} buyer might respond to this pitch
         </p>
 
-        {simulateMutation.isPending ? (
-          <div className="grid md:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="card-light space-y-3 p-6">
-                <Skeleton className="h-5 w-32" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-[75%]" />
-              </div>
-            ))}
-          </div>
-        ) : simulateMutation.isError ? (
-          <div className="rounded-xl bg-destructive/10 text-destructive px-4 py-3 text-sm">
-            {simulateMutation.error instanceof Error
-              ? simulateMutation.error.message
-              : "Failed to run simulation"}
-          </div>
-        ) : simulateMutation.data ? (
+        {simulationData ? (
           <div className="grid md:grid-cols-3 gap-6">
             <div className="card-light space-y-3">
               <h3 className="font-display text-lg font-semibold flex items-center gap-2">
                 <HelpCircle className="w-4 h-4 text-primary" /> Buyer Questions
               </h3>
               <ul className="space-y-2">
-                {simulateMutation.data.questions.map((q, i) => (
+                {simulationData.questions.map((q, i) => (
                   <li
                     key={i}
                     className="text-sm text-muted-foreground flex items-start gap-2"
@@ -260,7 +221,7 @@ export default function PitchResultPage() {
                 <ShieldAlert className="w-4 h-4 text-primary" /> Potential Concerns
               </h3>
               <ul className="space-y-2">
-                {simulateMutation.data.concerns.map((c, i) => (
+                {simulationData.concerns.map((c, i) => (
                   <li
                     key={i}
                     className="text-sm text-muted-foreground flex items-start gap-2"
@@ -276,7 +237,7 @@ export default function PitchResultPage() {
                 <Lightbulb className="w-4 h-4 text-secondary" /> Suggestions
               </h3>
               <ul className="space-y-2">
-                {simulateMutation.data.suggestions.map((s, i) => (
+                {simulationData.suggestions.map((s, i) => (
                   <li
                     key={i}
                     className="text-sm text-muted-foreground flex items-start gap-2"

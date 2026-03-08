@@ -3,6 +3,12 @@ import { integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-c
 import { user } from "./user";
 import { product } from "./product";
 
+export type BuyerSimulation = {
+  questions: string[];
+  concerns: string[];
+  suggestions: string[];
+};
+
 export const pitch = pgTable("pitch", {
   id: uuid().primaryKey().defaultRandom(),
   userId: uuid("user_id")
@@ -19,6 +25,8 @@ export const pitch = pgTable("pitch", {
   fitScore: integer("fit_score").notNull(),
   issues: jsonb("issues").$type<string[]>().notNull(),
   suggestions: jsonb("suggestions").$type<string[]>().notNull(),
+  /** Cached buyer simulation — null until the simulation is first run. */
+  buyerSimulation: jsonb("buyer_simulation").$type<BuyerSimulation>(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
     .defaultNow()
     .notNull(),

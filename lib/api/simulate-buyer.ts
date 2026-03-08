@@ -1,4 +1,5 @@
 export type SimulateBuyerInput = {
+  pitchId: string;
   productId: string;
   retailer: string;
   pitch: {

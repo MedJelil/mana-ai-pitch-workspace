@@ -29,6 +29,7 @@ export async function GET(
       suggestedPitch: pitch.suggestedPitch,
       issues: pitch.issues,
       suggestions: pitch.suggestions,
+      buyerSimulation: pitch.buyerSimulation,
     })
     .from(pitch)
     .innerJoin(product, eq(pitch.productId, product.id))

@@ -16,8 +16,9 @@ import {
 } from "@/components/ui/select";
 import { productsQueryKey, fetchProducts } from "@/lib/api/products";
 import { createPitch, pitchesQueryKey, type PitchResult } from "@/lib/api/pitches";
+import RetailerSearch from "@/components/RetailerSearch";
+import { type SelectedStore } from "@/lib/api/retailer-search";
 
-const RETAILERS = ["Whole Foods", "Walmart", "HEB", "Sam's Club"];
 const FOCUSES = ["Organic", "Premium", "Value"];
 
 export type { PitchResult };
@@ -39,16 +40,26 @@ export default function GeneratePitch() {
   });
 
   const [productId, setProductId] = useState("");
-  const [retailer, setRetailer] = useState("");
+  const [selectedStore, setSelectedStore] = useState<SelectedStore | null>(null);
   const [focus, setFocus] = useState("");
 
   const error = productsError?.message ?? generateMutation.error?.message ?? null;
   const loading = generateMutation.isPending;
 
+  const canGenerate = !!productId && !!selectedStore && !!focus && !loading;
+
   const handleGenerate = () => {
-    if (!productId || !retailer || !focus) return;
-    generateMutation.mutate({ productId, retailer, focus });
+    if (!canGenerate) return;
+    generateMutation.mutate({
+      productId,
+      focus,
+      storeInfo: selectedStore,
+    });
   };
+
+  const retailerDisplayName = selectedStore
+    ? `${selectedStore.storeName} in ${selectedStore.city}, ${selectedStore.state}`
+    : null;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -76,7 +87,7 @@ export default function GeneratePitch() {
           className={`card-light space-y-5 transition-opacity ${loading ? "opacity-60 pointer-events-none" : ""}`}
         >
           <h2 className="font-display text-xl font-semibold text-foreground">
-            Product Selection
+            Product & Store Selection
           </h2>
 
           {loadingProducts ? (
@@ -120,27 +131,16 @@ export default function GeneratePitch() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Target Retailer
-                </label>
-                <Select
-                  value={retailer || undefined}
-                  onValueChange={(v) => setRetailer(v ?? "")}
-                >
-                  <SelectTrigger className="w-full rounded-xl h-11">
-                    <SelectValue placeholder="Select retailer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {RETAILERS.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {r}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+              <div className="border-t border-border pt-5">
+                <RetailerSearch
+                  value={selectedStore}
+                  onChange={setSelectedStore}
+                  disabled={loading}
+                />
               </div>
-              <div className="space-y-2">
+
+              <div className="space-y-2 border-t border-border pt-5">
                 <label className="text-sm font-medium text-foreground">
                   Retailer Focus
                 </label>
@@ -163,14 +163,14 @@ export default function GeneratePitch() {
 
               <Button
                 onClick={handleGenerate}
-                disabled={!productId || !retailer || !focus || loading}
+                disabled={!canGenerate}
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl py-6 text-base font-semibold"
                 size="lg"
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Generating…
+                    Generating pitch & simulation…
                   </span>
                 ) : (
                   <span className="flex items-center gap-2">
@@ -200,7 +200,7 @@ export default function GeneratePitch() {
                   Cooking your pitch…
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  AI is tailoring this for {retailer}
+                  AI is tailoring this for {retailerDisplayName ?? selectedStore?.retailerBrand}
                 </p>
               </div>
               <div className="flex gap-2">

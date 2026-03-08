@@ -1,5 +1,11 @@
 export const pitchesQueryKey = ["pitches"] as const;
 
+export type BuyerSimulation = {
+  questions: string[];
+  concerns: string[];
+  suggestions: string[];
+};
+
 export type PitchRecord = {
   id: string;
   productId: string;
@@ -13,6 +19,7 @@ export type PitchRecord = {
   suggestedPitch?: string;
   issues?: string[];
   suggestions?: string[];
+  buyerSimulation?: BuyerSimulation | null;
 };
 
 export async function fetchPitches(): Promise<PitchRecord[]> {
@@ -27,10 +34,20 @@ export async function fetchPitch(id: string): Promise<PitchRecord> {
   return res.json();
 }
 
+export type StoreInfo = {
+  retailerBrand: string;
+  storeName: string;
+  address: string;
+  city: string;
+  state: string;
+};
+
 export type CreatePitchInput = {
   productId: string;
-  retailer: string;
   focus: string;
+  storeInfo: StoreInfo;
+  /** @deprecated pass storeInfo instead */
+  retailer?: string;
 };
 
 export type PitchResult = PitchRecord;
@@ -45,3 +62,4 @@ export async function createPitch(input: CreatePitchInput): Promise<PitchResult>
   if (!res.ok) throw new Error(data.error ?? "Failed to generate pitch");
   return data;
 }
+

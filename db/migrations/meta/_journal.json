@@ -15,6 +15,13 @@
       "when": 1772834844879,
       "tag": "0001_cultured_fantastic_four",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772933330385,
+      "tag": "0002_sharp_dreaming_celestial",
+      "breakpoints": true
     }
   ]
 }

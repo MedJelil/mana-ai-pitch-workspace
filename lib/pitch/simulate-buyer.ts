@@ -111,7 +111,7 @@ Provide 3 questions, 2 concerns, and 3 suggestions. Return only the JSON object.
     contents: userPrompt,
     config: {
       systemInstruction: systemPrompt,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 8192,
       responseMimeType: "application/json",
       responseSchema: RESPONSE_SCHEMA,
     },
@@ -134,8 +134,12 @@ Provide 3 questions, 2 concerns, and 3 suggestions. Return only the JSON object.
         throw new Error(`Simulation returned invalid JSON. Preview: ${preview}${trimmed.length > 300 ? "…" : ""}`);
       }
     } else {
+      // end === 0 means there is no closing "}" — the response was truncated mid-stream.
       const preview = trimmed.slice(0, 300) || "(empty response)";
-      throw new Error(`Simulation returned invalid JSON (no object found). Preview: ${preview}`);
+      const hint = trimmed.length > 0 && !trimmed.includes("}")
+        ? " (response appears truncated — no closing brace found)"
+        : "";
+      throw new Error(`Simulation returned invalid JSON${hint}. Preview: ${preview}`);
     }
   }
 

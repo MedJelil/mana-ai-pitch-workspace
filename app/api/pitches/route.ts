@@ -41,14 +41,25 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { productId, retailer, focus } = body;
+  const { productId, focus, storeInfo } = body;
 
-  if (!productId || !retailer || !focus) {
+  if (!productId || !focus || !storeInfo?.retailerBrand || !storeInfo?.storeName) {
     return NextResponse.json(
-      { error: "productId, retailer, and focus are required" },
+      { error: "productId, focus, and storeInfo (retailerBrand, storeName) are required" },
       { status: 400 }
     );
   }
+
+  // Build human-readable retailer string stored in DB
+  const retailer = storeInfo.city && storeInfo.state
+    ? `${storeInfo.storeName} (${storeInfo.city}, ${storeInfo.state})`
+    : storeInfo.storeName;
+
+  // City + state give useful regional context; street address doesn't add signal
+  const locationParts = [storeInfo.city, storeInfo.state].filter(Boolean).join(", ");
+  const storeContext = locationParts
+    ? `${storeInfo.storeName} in ${locationParts}`
+    : storeInfo.storeName;
 
   const [productRow] = await db
     .select()
@@ -61,19 +72,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
 
+  const productData = {
+    name: productRow.name,
+    category: productRow.category,
+    description: productRow.description,
+    keySellingPoints: (productRow.keySellingPoints as string[]) ?? [],
+    certifications: (productRow.certifications as string[]) ?? [],
+    velocityData: productRow.velocityData,
+    packagingSustainability: productRow.packagingSustainability,
+    pricePositioning: productRow.pricePositioning,
+  };
+
+  // Single AI call — returns pitch + buyer simulation together
   const generated = await generatePitch(
-    {
-      name: productRow.name,
-      category: productRow.category,
-      description: productRow.description,
-      keySellingPoints: (productRow.keySellingPoints as string[]) ?? [],
-      certifications: (productRow.certifications as string[]) ?? [],
-      velocityData: productRow.velocityData,
-      packagingSustainability: productRow.packagingSustainability,
-      pricePositioning: productRow.pricePositioning,
-    },
-    retailer,
-    focus
+    productData,
+    storeInfo.retailerBrand,
+    focus,
+    storeContext
   );
 
   const [inserted] = await db
@@ -89,6 +104,7 @@ export async function POST(req: NextRequest) {
       fitScore: generated.fitScore,
       issues: generated.issues,
       suggestions: generated.suggestions,
+      buyerSimulation: generated.buyerSimulation,
     })
     .returning();
 

@@ -1,0 +1,1 @@
+ALTER TABLE "pitch" ADD COLUMN "buyer_simulation" jsonb;
